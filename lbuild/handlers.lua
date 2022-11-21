@@ -35,7 +35,7 @@ return {
         end
         local op = out:sub(1,-6)..".lua";
         if (lfs.attributes(op)) and not args["LASM_overwrite"] then
-            op=op:sub(1,-4).."_lasm.lua"
+            op=op:sub(1,-5).."_lasm.lua"
         end
         write(op,byte);
         return true; -- remove the original file
