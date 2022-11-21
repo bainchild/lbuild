@@ -4,12 +4,21 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "process",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "command": "clear && lua build.lua process \"env=${input:type}\" logLevel=${input:logLevel}",
+            "problemMatcher": []
+        },
+        {
             "label": "build",
             "type": "shell",
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "command": "clear && lua build.lua build \"env=${input:type}\" logLevel=${input:logLevel}",
+            "command": "clear && lua build.lua build LASM_compileto=amd64 \"env=${input:type}\" logLevel=${input:logLevel}",
             "problemMatcher": []
         },
         {
@@ -42,7 +51,7 @@
         {
             "id": "logLevel",
             "type": "pickString",
-            "description": "LOG() macro level",
+            "description": "LOG() macro level & command line verbosity",
             "options": ["error","warning","info","debug","trace","off"],
             "default": "warning"
         }

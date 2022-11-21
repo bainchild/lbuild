@@ -1,0 +1,4 @@
+GETGLOBAL 0 "print"
+LOADK 1 "abc"
+CALL 0 2 2
+RETURN 1 1

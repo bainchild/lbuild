@@ -1,0 +1,3 @@
+[submodule "lbuild/LuaAssemblyTools"]
+	path = lbuild/LuaAssemblyTools
+	url = https://github.com/bainchild/LuaAssemblyTools.git

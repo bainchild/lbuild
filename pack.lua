@@ -1,4 +1,5 @@
 #!/usr/bin/env lua
+---@diagnostic disable: lowercase-global
 
 --[[
     The MIT License
@@ -90,10 +91,41 @@ __pack.require = function(idx)
     return module
 end
 ]]
+local byte_luapack_header = [[
+local __pack
+__pack={
+	modules = {
+		%s
+	};
+	cache = {};
+    ls_bytecode = false;
+}
+__pack.require = function(idx)
+    local cache = __pack.cache[idx]
+    if cache then
+        return cache
+    end
+
+    local module
+    if __pack.modules[idx][1] then
+        if not __pack.ls_bytecode then return error('Bytecode isn\'t supported!') end
+        local func,err = (loadstring or load)(__pack.modules[idx][2])
+        if func==nil then return error(err) end
+        module=func()
+    else
+        module=__pack.modules[idx][2]()
+    end
+
+    __pack.cache[idx] = module
+    return module
+end
+if (load or loadstring) then
+    __pack.ls_bytecode=true;
+end
+]]
 
 -- python-like path helpers
-local path
-path = {
+local path;path = {
     isrelative = function(path) 
         return path:sub(1, 1) ~= '/'
     end,
@@ -170,6 +202,12 @@ function gsub_escape(str)
 		return c
 	end)
 end
+function code_escape(s)
+    return s:gsub('[^%w%s]',function(c)
+        return '\\'..tostring(c:byte())
+    end)
+end
+local uses_bytecode=false
 
 function require_string(idx,y)
     if y then return "__pack%.require%((%w*)%)" end
@@ -185,12 +223,15 @@ function import(module_path,method)
         if fd==nil then error(err) end
         local source = fd:read("*a")
         io.close(fd)
-        if source:sub(1,4)=="\27Lua" then error('TODO: bytecode support') end
         modules[module_path] = ' --[[PLACEHOLDER]] '
-        source = transform(source, module_path, method)
+        source = ((source:sub(1,4)=="\27Lua" and bytecode_transform) or transform)(source, module_path, method)
         modules[module_path] = source
     end
     return require_string(module_path)
+end
+function bytecode_transform(byte, path, method)
+    uses_bytecode=true;
+    return byte -- TODO: this
 end
 
 function transform(source, source_path, method)
@@ -240,7 +281,6 @@ function transform(source, source_path, method)
 end
 
 function generate_module_header()
-
     function left_pad(source, padding, ch)
         ch = ch or ' '
         local repl = function(str)
@@ -251,7 +291,15 @@ function generate_module_header()
 
     function pad(source,mp)
         source = left_pad(source, 4)
-        source = string.format('["%s"] = (function(...)\n%s\nend),\n', mp, source)
+        if uses_bytecode then
+            if source:sub(1,4)=="\27Lua" then
+                source = string.format('["%s"] = {true,"%s"},\n', mp, code_escape(source))
+            else
+                source = string.format('["%s"] = {false,(function(...)\n%s\nend)},\n', mp, source)
+            end
+        else
+            source = string.format('["%s"] = (function(...)\n%s\nend),\n', mp, source)
+        end
         source = left_pad(source, 4)
         return source
     end
@@ -262,11 +310,12 @@ function generate_module_header()
     	inc=inc+1
     end
     if inc == 0 then return '' end
-    local header = string.format(luapack_header, modstring)
+    local header = string.format(((uses_bytecode and byte_luapack_header) or luapack_header), modstring)
     return header
 end
 
 function main(argv)
+    uses_bytecode=false
     if #argv == 0 then
         local usage = string.format('usage: %s <toplevel-module>.lua', argv[0])
         print(usage)

@@ -1,5 +1,14 @@
-local lfs = require('lfs')
+local build_file_handlers = {}
+do
+	local s,r = pcall(require,'lbuild.handlers')
+	if s then
+		build_file_handlers=r
+	elseif not r:match('.*module \'lbuild.handlers\' not found:\n.*') then
+		error(r)
+	end
+end
 local pp = require('preprocess')
+local lfs = require('lfs')
 local function recurse(path,todo,cext)
 	local todo=todo or {}
 	if lfs.attributes(path)==nil then return todo end
@@ -19,7 +28,7 @@ local function recurse(path,todo,cext)
 	return todo
 end
 local function recurse_rmdir(dir)
-	local todo = recurse(dir);
+	local todo = recurse(dir,nil,function() return true end);
 	for i,v in pairs(todo) do
 		if v[1] then
 			os.remove(v[2]);
@@ -31,6 +40,18 @@ local function recurse_rmdir(dir)
 		end
 	end
 	lfs.rmdir(dir);
+end
+local function read(file)
+	local handle = assert(io.open(file,'rb'))
+	local content = handle:read('*a')
+	handle:close()
+	return content
+end
+local function copy(file,to)
+	local handle = assert(io.open(to,'wb'))
+	local content = read(file);
+	handle:write(content);
+	handle:close();
 end
 local function extend(a,b)
 	local n = {}
@@ -63,41 +84,80 @@ for i,v in pairs(({...})) do
 		end
 	end
 end
-if (...)=="build" then
-	lfs.mkdir("build")
+if (...)=="process" then
+	recurse_rmdir("proc")
+	recurse_rmdir("temp")
+	lfs.mkdir("proc")
 	lfs.mkdir("temp")
 	local todo = recurse("src",nil,function(f)
 		return true
 	end)
 	for i,v in pairs(todo) do 
 		if not v[1] then
-			lfs.mkdir('build/'..v[2]:sub(5))
+			lfs.mkdir('proc/'..v[2]:sub(5))
 			lfs.mkdir('temp/'..v[2]:sub(5))
 		end
 	end
 	lfs.chdir("src");
 	for i,v in pairs(todo) do
 		if v[1] then
-			local info,err = pp.processFile(extend({
-				pathIn=v[2]:sub(5),
-				pathOut='../build/'..v[2]:sub(5),
-				pathMeta='../temp/'..v[2]:sub(5),
-				validate=v[2]:sub(-4)==".lua"
-			},args))
-			if not info then
-				lfs.chdir("..");
-				recurse_rmdir("build");
-				if not args["stemp"] then
-					recurse_rmdir("temp");
+			if ((v[2]:sub(-4)==".lua" and read(v[2]:sub(5)):sub(1,4)~="\27Lua") or v[2]:sub(-4)~=".lua") then
+				local info,err = pp.processFile(extend({
+					pathIn=v[2]:sub(5),
+					pathOut='../proc/'..v[2]:sub(5),
+					pathMeta='../temp/'..v[2]:sub(5),
+					validate=v[2]:sub(-4)==".lua"
+				},args))
+				if not info then
+					lfs.chdir("..");
+					recurse_rmdir("proc");
+					if not args["stemp"] then
+						recurse_rmdir("temp");
+					end
+					error(err);
+					break
 				end
-				error(err);
-				break
+			else
+				copy(v[2]:sub(5),"../proc/"..v[2]:sub(5))
 			end
 		end
 	end
 	lfs.chdir("..");
 	if not args["stemp"] then
 		recurse_rmdir("temp");
+	end
+elseif (...)=="build" then
+	recurse_rmdir("build")
+	local dir = 'src'
+	for f in lfs.dir(".") do
+		if f=="proc" then
+			dir=f;break
+		end
+	end
+	lfs.mkdir("build");
+	local todo = recurse(dir,nil,function()
+		return true
+	end)
+	for i,v in pairs(todo) do
+		if v[1] then
+			local spl = split(v[2],"%.");
+			local extension = "."..spl[#spl];
+			local found = false
+			for regex,handler in pairs(build_file_handlers) do
+				if extension:match(regex) then
+					if handler(v[2],"build/"..table.concat(split(v[2],"/"),'/',2),args) then
+						os.remove("build/"..table.concat(split(v[2],"/"),'/',2));
+					end
+					found=true;
+					break
+				end
+			end
+			if not found then
+				copy(v[2],"build/"..table.concat(split(v[2],"/"),'/',2))
+			end
+		else
+			lfs.mkdir("build/"..table.concat(split(v[2],"/"),'/',2))
+		end
 	end
 elseif (...)=="bundle" then
 	local found = false
@@ -110,13 +170,13 @@ elseif (...)=="bundle" then
 		print('You have to use `lua build.lua build` first.')
 		os.exit(1)
 	end
+	os.remove("bundle.lua");
 	lfs.chdir("build");
 	os.execute("lua ../pack.lua main.lua ../bundle.lua");
 	lfs.chdir("..");
 elseif (...)=="clean" then
 	os.remove("./bundle.lua");
 	recurse_rmdir("build");
+	recurse_rmdir("proc");
 	recurse_rmdir("temp");
 end
-
-
