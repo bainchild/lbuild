@@ -34,7 +34,7 @@ return {
             assert(loadstring(byte));
         end
         local op = out:sub(1,-6)..".lua";
-        if (lfs.attributes(op)) and not args["LASM_overwrite"] then
+        if not args["LASM_overwrite"] then
             op=op:sub(1,-5).."_lasm.lua"
         end
         write(op,byte);
