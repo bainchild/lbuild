@@ -38,6 +38,15 @@
             },
             "command": "clear && lua build.lua clean",
             "problemMatcher": []
+        },
+        {
+            "label": "all",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "command": "clear && lua build.lua process \"env=${input:type}\" logLevel=${input:logLevel} && lua build.lua build \"env=${input:type}\" logLevel=${input:logLevel} && lua build.lua bundle && mv bundle.lua bundle_.lua && lua build.lua clean && mv bundle_.lua bundle.lua",
+            "problemMatcher": []
         }
     ],
     "inputs": [

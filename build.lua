@@ -203,6 +203,9 @@ elseif (...)=="bundle" then
 	lfs.chdir("build");
 	os.execute("lua ../pack.lua main.lua ../bundle.lua");
 	lfs.chdir("..");
+	local ast = dp.parse(read('bundle.lua'));
+	dp.optimize(ast);
+	write('bundle.lua',dp.toLua(ast,true));
 elseif (...)=="clean" then
 	os.remove("./bundle.lua");
 	recurse_rmdir("build");
