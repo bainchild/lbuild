@@ -1,5 +1,17 @@
 local lfs = require('lfs')
 local pp = require('preprocess')
+local dp = require('dumbParser')
+local function read(a)
+	local h = io.open(a,'rb');
+	local c = h:read("*a");
+	h:close();
+	return c
+end
+local function write(a,b)
+	local h = io.open(a,'wb');
+	h:write(b);
+	h:close();
+end
 local function recurse(path,todo,cext)
 	local todo=todo or {}
 	if lfs.attributes(path)==nil then return todo end
@@ -93,6 +105,10 @@ if (...)=="build" then
 				error(err);
 				break
 			end
+			print(v[2],info);
+			local ast = dp.parse(read('../build/'..v[2]:sub(5)));
+			dp.optimize(ast);
+			write('../build/'..v[2]:sub(5),dp.toLua(ast,true));
 		end
 	end
 	lfs.chdir("..");
