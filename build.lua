@@ -105,10 +105,17 @@ if (...)=="build" then
 				error(err);
 				break
 			end
-			print(v[2],info);
-			local ast = dp.parse(read('../build/'..v[2]:sub(5)));
-			dp.optimize(ast);
-			write('../build/'..v[2]:sub(5),dp.toLua(ast,true));
+			if info.hasPreprocessorCode then
+				print(v[2],'l:'..info.linesOfCode,'b:'..info.processedByteCount)
+				for i,v in pairs(info.insertedFiles) do
+					print("\tinsert ",v);
+				end
+			end
+			if v[2]:sub(-4)==".lua" then
+				local ast = dp.parse(read('../build/'..v[2]:sub(5)));
+				dp.optimize(ast);
+				write('../build/'..v[2]:sub(5),dp.toLua(ast,true));
+			end
 		end
 	end
 	lfs.chdir("..");
