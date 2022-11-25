@@ -135,6 +135,12 @@ if (...)=="process" then
 					error(err);
 					break
 				end
+				if info.hasPreprocessorCode then
+					print(v[2],'l:'..info.linesOfCode,'b:'..info.processedByteCount)
+					for i,v in pairs(info.insertedFiles) do
+						print("\tinsert ",v);
+					end
+				end
 				if v[2]:sub(-4)==".lua" then
 					local ast = dp.parse(read('../proc/'..v[2]:sub(5)));
 					dp.optimize(ast);
