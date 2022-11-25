@@ -8,6 +8,7 @@ do
 	end
 end
 local pp = require('preprocess')
+local dp = require('dumbParser')
 local lfs = require('lfs')
 local function recurse(path,todo,cext)
 	local todo=todo or {}
@@ -133,6 +134,11 @@ if (...)=="process" then
 					end
 					error(err);
 					break
+				end
+				if v[2]:sub(-4)==".lua" then
+					local ast = dp.parse(read('../proc/'..v[2]:sub(5)));
+					dp.optimize(ast);
+					write('../proc/'..v[2]:sub(5),dp.toLua(ast,true));
 				end
 			else
 				copy(v[2]:sub(5),"../proc/"..v[2]:sub(5))
