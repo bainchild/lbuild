@@ -44,6 +44,20 @@ local function recurse_rmdir(dir)
 	end
 	lfs.rmdir(dir);
 end
+local function unluau(source)
+	source=source:gsub(':%s+[%->%w<>]+(=?)','') -- abc: type
+	source=source:gsub(':%s+%b{}','') -- abc: {}
+	source=source:gsub(':%s+%([%w<>,%s]*%)%s+%->%s%([%w<>,%s]*%)','') -- abc: ()->()
+	source=source:gsub(':%s+%([%w<>,%s]*%)','') -- abc: ()
+	source=source:gsub('export%s+type%s+[%w<>]+%s+=%s+%w[^\n]*\n','') -- export type abc = AAA
+	source=source:gsub('export%s+type%s+[%w<>]+%s+=%s+{?[^}]+}[^\n]*\n','') -- export type abc = {...}
+	source=source:gsub('type%s+[%w<>]+%s+=%s+%w[^\n]*\n','') -- type abc = AAA
+	source=source:gsub('type%s+[%w<>]+%s+=%s+{?[^}]+}[^\n]*\n','') -- type abc = {...}
+	source=source:gsub('(%s+)([+-*/%^.]+)=(%s+)',function(var,op,other) -- a+=1
+		return var..'='..var..op..other
+	end)
+	return source
+end
 local function extend(a,b)
 	local n = {}
 	for i,v in pairs(a) do n[i]=v end
@@ -90,6 +104,7 @@ if (...)=="build" then
 	lfs.chdir("src");
 	for i,v in pairs(todo) do
 		if v[1] then
+			if args['unluau'] then write(v[2]:sub(5),unluau(v[2]:sub(5))) end
 			local info,err = pp.processFile(extend({
 				pathIn=v[2]:sub(5),
 				pathOut='../build/'..v[2]:sub(5),
